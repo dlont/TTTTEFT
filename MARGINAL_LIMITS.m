@@ -25,7 +25,7 @@ sigma_SM_29_09_17 = 2.9*sig_SM - sig_SM; % ~ 27fb - constant from SM in equation
 % RUN FOR LAMBDA = 1,2,3,4
 % Marginal and independent.
 
-%[C1_min_29_09_17,C2_min_29_09_17,C3_min_29_09_17,C4_min_29_09_17,C5_min_29_09_17,C1_min_tol_29_09_17,C2_min_tol_29_09_17,C3_min_tol_29_09_17,C4_min_tol_29_09_17,C5_min_tol_29_09_17]=get_lower_limit(sigma_SM_29_09_17,-35,10^-5,sig_i,sig_ij);
+[C1_min_29_09_17,C2_min_29_09_17,C3_min_29_09_17,C4_min_29_09_17,C5_min_29_09_17,C1_min_tol_29_09_17,C2_min_tol_29_09_17,C3_min_tol_29_09_17,C4_min_tol_29_09_17,C5_min_tol_29_09_17]=get_lower_limit(sigma_SM_29_09_17,-10,10^-5,sig_i,sig_ij);
 %[C1_max_29_09_17,C2_max_29_09_17,C3_max_29_09_17,C4_max_29_09_17,C5_max_29_09_17,C1_max_tol_29_09_17,C2_max_tol_29_09_17,C3_max_tol_29_09_17,C4_max_tol_29_09_17,C5_max_tol_29_09_17]=get_upper_limit(sigma_SM_29_09_17,35,10^-5,sig_i,sig_ij);
 
 
@@ -84,50 +84,58 @@ Xlen = size(X0:Xstep:X1,2);
 %start c1
 
 
+cross_row = zeros(1,Xlen);
+C1_first_zero = Xlen;
+
 disp('starting lower limit search for C1:')
 C1_quit = 'false';
 C1_iterations = 0;
 while strcmp(C1_quit,'false')
     C1_iterations = C1_iterations +1,
-    C1_matrix = ones(1,Xlen*Ylen^4); % preallocate matrix of certain dimension
-    i1 = 0;
-    for c2 = Y0:Ystep:Y1
+    %C1_matrix = ones(1,Xlen*Ylen^4); % preallocate matrix of certain dimension
+    %i1 = 0;
+    C1_first_zero = Xlen;
+    for c1 = Y0:Ystep:Y1
         for c3 = Y0:Ystep:Y1
             for c4 = Y0:Ystep:Y1
                 for c5 = Y0:Ystep:Y1
-                    for c1 = X0:Xstep:X1
+                    i1 = 0;
+                    for c2 = X0:Xstep:X1
                         i1 = i1+1;
-                    cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
-                    cross = cross - cross_threshold;
-                    if cross >= 0
-                        cross = 1;% outside of allowed region
-                    else
-                        cross = 0;% inside of allowed region
+                        cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
+                        cross = cross - cross_threshold;
+                        
+                        %% Create Binary data
+                        if cross >= 0
+                            cross = 1;% outside of allowed region
+                        else
+                            cross = 0;% inside of allowed region
+                        end
+                        cross_row(i1) = cross;
+                    end
+                    %% Check if first zero appears before previous first zero
+                    
+                    if C1_first_zero > 1 % index starts at 1 in matlab
+                        for k = 1:Xlen
+                            if cross_row(k)==0 && k < C1_first_zero
+                                C1_first_zero = k;
+                                break
+                            end
+                        end
                     end
                     
-                    C1_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
-  
-                    end
+                    
                 end
             end
         end
     end
-    C1_matrix = vec2mat(C1_matrix,Xlen); % make matrix from the row vector
     
+    X_array = X0:Xstep:X1,
     
-    C1_rows = 0; % keep rows from C1_matrix which contain a zero
-    for row = 1:size(C1_matrix,1)
-        for column = 1:size(C1_matrix,2)
-            if C1_matrix(row,column) == 0
-                C1_rows = [C1_rows row]; %#ok<*AGROW>
-                break
-            end
-        end
-    end
-
+    %{
     C1_rows = C1_rows(1,2:size(C1_rows,2)); % eliminate the first element which is artificial
     C1_nr_rows = size(C1_rows,2), % count of rows that contain a 0
-
+    
     %TEST CURRENT ITERATION
     
     X_array = X0:Xstep:X1,
@@ -141,20 +149,21 @@ while strcmp(C1_quit,'false')
             break
         end
     end
+    %}
     
     C1_first_zero,
     
-%     if C1_nr_rows == 1
-%         C1_min = X_array(C1_first_zero);
-%         C1_tol = Xstep;
-%         C1_quit = 'true';
-%         disp('Only 1 row remaining reached')
-%     else
+    %     if C1_nr_rows == 1
+    %         C1_min = X_array(C1_first_zero);
+    %         C1_tol = Xstep;
+    %         C1_quit = 'true';
+    %         disp('Only 1 row remaining reached')
+    %     else
     if Xstep < Tolerance
         C1_min = X_array(C1_first_zero);
         C1_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -193,6 +202,7 @@ disp(C1_tol)
 
 %end c1
 
+%{
 
 %start c2
 
@@ -269,7 +279,7 @@ while strcmp(C2_quit,'false')
         C2_min = X_array(C2_first_zero);
         C2_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -384,7 +394,7 @@ while strcmp(C3_quit,'false')
         C3_min = X_array(C3_first_zero);
         C3_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -500,7 +510,7 @@ while strcmp(C4_quit,'false')
         C4_min = X_array(C4_first_zero);
         C4_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -616,7 +626,7 @@ while strcmp(C5_quit,'false')
         C5_min = X_array(C5_first_zero);
         C5_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -653,7 +663,7 @@ disp(C5_tol)
 
 %end c5
 
-
+%}
 
 
 
@@ -705,15 +715,15 @@ while strcmp(C1_quit,'false')
                 for c5 = Y0:Ystep:Y1
                     for c1 = X0:Xstep:X1
                         i1 = i1+1;
-                    cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
-                    cross = cross - cross_threshold;
-                    if cross >= 0
-                        cross = 1;% outside of allowed region
-                    else
-                        cross = 0;% inside of allowed region
-                    end
-                    C1_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
-  
+                        cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
+                        cross = cross - cross_threshold;
+                        if cross >= 0
+                            cross = 1;% outside of allowed region
+                        else
+                            cross = 0;% inside of allowed region
+                        end
+                        C1_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
+                        
                     end
                 end
             end
@@ -731,10 +741,10 @@ while strcmp(C1_quit,'false')
             end
         end
     end
-
+    
     C1_rows = C1_rows(1,2:size(C1_rows,2)); % eliminate the first element which is artificial
     C1_nr_rows = size(C1_rows,2), % count of rows that contain a 0
-
+    
     %TEST CURRENT ITERATION
     
     X_array = X0:Xstep:X1,
@@ -751,16 +761,16 @@ while strcmp(C1_quit,'false')
     
     C1_first_zero,
     
-%     if C1_nr_rows == 1
-%         C1_max = X_array(C1_first_zero);
-%         C1_tol = Xstep;
-%         C1_quit = 'true';
-%         disp('Only 1 row remaining reached')
+    %     if C1_nr_rows == 1
+    %         C1_max = X_array(C1_first_zero);
+    %         C1_tol = Xstep;
+    %         C1_quit = 'true';
+    %         disp('Only 1 row remaining reached')
     if Xstep < Tolerance
         C1_max = X_array(C1_first_zero);
         C1_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -820,15 +830,15 @@ while strcmp(C2_quit,'false')
                 for c1 = Y0:Ystep:Y1
                     for c2 = X0:Xstep:X1
                         i1 = i1+1;
-                    cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
-                    cross = cross - cross_threshold;
-                    if cross >= 0
-                        cross = 1;% outside of allowed region
-                    else
-                        cross = 0;% inside of allowed region
-                    end
-                    C2_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
-  
+                        cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
+                        cross = cross - cross_threshold;
+                        if cross >= 0
+                            cross = 1;% outside of allowed region
+                        else
+                            cross = 0;% inside of allowed region
+                        end
+                        C2_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
+                        
                     end
                 end
             end
@@ -846,10 +856,10 @@ while strcmp(C2_quit,'false')
             end
         end
     end
-
+    
     C2_rows = C2_rows(1,2:size(C2_rows,2)); % eliminate the first element which is artificial
     C2_nr_rows = size(C2_rows,2), % count of rows that contain a 0
-
+    
     %TEST CURRENT ITERATION
     
     X_array = X0:Xstep:X1,
@@ -866,16 +876,16 @@ while strcmp(C2_quit,'false')
     
     C2_first_zero,
     
-%     if C2_nr_rows == 1
-%         C2_max = X_array(C2_first_zero);
-%         C2_tol = Xstep;
-%         C2_quit = 'true';
-%         disp('Only 1 row remaining reached')
+    %     if C2_nr_rows == 1
+    %         C2_max = X_array(C2_first_zero);
+    %         C2_tol = Xstep;
+    %         C2_quit = 'true';
+    %         disp('Only 1 row remaining reached')
     if Xstep < Tolerance
         C2_max = X_array(C2_first_zero);
         C2_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -935,15 +945,15 @@ while strcmp(C3_quit,'false')
                 for c2 = Y0:Ystep:Y1
                     for c3 = X0:Xstep:X1
                         i1 = i1+1;
-                    cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
-                    cross = cross - cross_threshold;
-                    if cross >= 0
-                        cross = 1;% outside of allowed region
-                    else
-                        cross = 0;% inside of allowed region
-                    end
-                    C3_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
-  
+                        cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
+                        cross = cross - cross_threshold;
+                        if cross >= 0
+                            cross = 1;% outside of allowed region
+                        else
+                            cross = 0;% inside of allowed region
+                        end
+                        C3_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
+                        
                     end
                 end
             end
@@ -961,10 +971,10 @@ while strcmp(C3_quit,'false')
             end
         end
     end
-
+    
     C3_rows = C3_rows(1,2:size(C3_rows,2)); % eliminate the first element which is artificial
     C3_nr_rows = size(C3_rows,2), % count of rows that contain a 0
-
+    
     %TEST CURRENT ITERATION
     
     X_array = X0:Xstep:X1,
@@ -981,16 +991,16 @@ while strcmp(C3_quit,'false')
     
     C3_first_zero,
     
-%     if C3_nr_rows == 1
-%         C3_max = X_array(C3_first_zero);
-%         C3_tol = Xstep;
-%         C3_quit = 'true';
-%         disp('Only 1 row remaining reached')
+    %     if C3_nr_rows == 1
+    %         C3_max = X_array(C3_first_zero);
+    %         C3_tol = Xstep;
+    %         C3_quit = 'true';
+    %         disp('Only 1 row remaining reached')
     if Xstep < Tolerance
         C3_max = X_array(C3_first_zero);
         C3_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -1051,15 +1061,15 @@ while strcmp(C4_quit,'false')
                 for c3 = Y0:Ystep:Y1
                     for c4 = X0:Xstep:X1
                         i1 = i1+1;
-                    cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
-                    cross = cross - cross_threshold;
-                    if cross >= 0
-                        cross = 1;% outside of allowed region
-                    else
-                        cross = 0;% inside of allowed region
-                    end
-                    C4_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
-  
+                        cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
+                        cross = cross - cross_threshold;
+                        if cross >= 0
+                            cross = 1;% outside of allowed region
+                        else
+                            cross = 0;% inside of allowed region
+                        end
+                        C4_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
+                        
                     end
                 end
             end
@@ -1077,10 +1087,10 @@ while strcmp(C4_quit,'false')
             end
         end
     end
-
+    
     C4_rows = C4_rows(1,2:size(C4_rows,2)); % eliminate the first element which is artificial
     C4_nr_rows = size(C4_rows,2), % count of rows that contain a 0
-
+    
     %TEST CURRENT ITERATION
     
     X_array = X0:Xstep:X1,
@@ -1097,16 +1107,16 @@ while strcmp(C4_quit,'false')
     
     C4_first_zero,
     
-%     if C4_nr_rows == 1
-%         C4_max = X_array(C4_first_zero);
-%         C4_tol = Xstep;
-%         C4_quit = 'true';
-%         disp('Only 1 row remaining reached')
+    %     if C4_nr_rows == 1
+    %         C4_max = X_array(C4_first_zero);
+    %         C4_tol = Xstep;
+    %         C4_quit = 'true';
+    %         disp('Only 1 row remaining reached')
     if Xstep < Tolerance
         C4_max = X_array(C4_first_zero);
         C4_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -1167,15 +1177,15 @@ while strcmp(C5_quit,'false')
                 for c4 = Y0:Ystep:Y1
                     for c5 = X0:Xstep:X1
                         i1 = i1+1;
-                    cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
-                    cross = cross - cross_threshold;
-                    if cross >= 0
-                        cross = 1;% outside of allowed region
-                    else
-                        cross = 0;% inside of allowed region
-                    end
-                    C5_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
-  
+                        cross = sig_i * [c1 ; c2 ; c3 ; c4 ; c5] + [c1 c2 c3 c4 c5]*sig_ij*[c1 ; c2 ; c3 ; c4 ; c5];
+                        cross = cross - cross_threshold;
+                        if cross >= 0
+                            cross = 1;% outside of allowed region
+                        else
+                            cross = 0;% inside of allowed region
+                        end
+                        C5_matrix(1,i1) = cross;% row vector containing cross section info in binary, to be transformed into matrix (2D data)
+                        
                     end
                 end
             end
@@ -1193,10 +1203,10 @@ while strcmp(C5_quit,'false')
             end
         end
     end
-
+    
     C5_rows = C5_rows(1,2:size(C5_rows,2)); % eliminate the first element which is artificial
     C5_nr_rows = size(C5_rows,2), % count of rows that contain a 0
-
+    
     %TEST CURRENT ITERATION
     
     X_array = X0:Xstep:X1,
@@ -1213,16 +1223,16 @@ while strcmp(C5_quit,'false')
     
     C5_first_zero,
     
-%     if C5_nr_rows == 1
-%         C5_max = X_array(C5_first_zero);
-%         C5_tol = Xstep;
-%         C5_quit = 'true';
-%         disp('Only 1 row remaining reached')
+    %     if C5_nr_rows == 1
+    %         C5_max = X_array(C5_first_zero);
+    %         C5_tol = Xstep;
+    %         C5_quit = 'true';
+    %         disp('Only 1 row remaining reached')
     if Xstep < Tolerance
         C5_max = X_array(C5_first_zero);
         C5_quit = 'true';
         disp('Tolerance reached')
-    end 
+    end
     
     % PREPARE NEXT ITERATION
     
@@ -1255,7 +1265,7 @@ disp('Upper limit for C5')
 disp(C5_max)
 disp('Tolerance C5')
 disp(C5_tol)
- 
+
 
 %end c5
 
